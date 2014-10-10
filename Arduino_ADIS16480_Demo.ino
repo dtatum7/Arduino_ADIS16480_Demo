@@ -1,28 +1,43 @@
 #include <ADIS16480.h>
 #include <SPI.h>
 
-ADIS16480 IMU(9,8,7); // chip select pin for ADIS16480
+//#define DEBUG // Comment out this line to disable DEBUG mode
+unsigned char roll = 0;
+unsigned char pitch = 0;
+unsigned char yaw = 0;
+unsigned char syncWord = 0xFF; // Used to synchronize serial data received by GUI on PC
 
-//unsigned int PROD_ID = 0x007E;
-int errorCount = 0;
+ADIS16480 IMU(9,8,7); // Instatiate IMU(Chip Select, Data Ready, HW Reset)
 
 void setup() {
+  Serial.begin(57600); // Baud rate was set arbitrarily
+  // Reminder that you're in DEBUG mode
   #ifdef DEBUG
-    // Serial settings for PC interface
-    Serial.begin(57600); // Baud rate was set arbitrarily
     Serial.println("**********DEBUG MODE**********");
   #endif
-  Serial.begin(57600); // Baud rate was set arbitrarily
-  IMU.reset();
-  for (long int i = 0; i < 1000000; ++i) {
-    if (IMU.regRead(PROD_ID) != 16480) {
-      ++errorCount;
-    }
-  }
-  Serial.print("number of errors: ");
-  Serial.print(errorCount);
-  Serial.println("!!");
+  IMU.reset(); // Reset IMU
 }
 
 void loop() {
+  if(digitalRead(8) == LOW) { // 
+    roll = (unsigned char)(IMU.regRead(ROLL_C23_OUT) >> 8); // Read roll register and cast to char
+    pitch = (unsigned char)(IMU.regRead(PITCH_C31_OUT) >> 8); // Read pitch register and cast to char
+    yaw = (unsigned char)(IMU.regRead(YAW_C32_OUT) >> 8); // Read pitch register and cast to char
+    // 0xFF is a reserved word used for data synchronization
+    if(roll == 0xFF) { // 0xFF represents 360 degrees
+      roll = 0; // This makes sense since 0 and 360 degrees are the same place
+    }
+    if(pitch == 0xFF) { // 0xFF represents 360 degrees
+      pitch = 0; // This makes sense since 0 and 360 degrees are the same place
+    }
+    if(yaw == 0xFF) { // 0xFF represents 360 degrees
+      yaw = 0; // This makes sense since 0 and 360 degrees are the same place
+    }
+  }
+  Serial.write(roll); // Write roll data to serial connection
+  Serial.write(pitch); // Write pitch data to serial connection
+  Serial.write(yaw); // Write yaw data to serial connection
+  Serial.write(syncWord); // Write synchronization word to serial connection
 }
+
+
